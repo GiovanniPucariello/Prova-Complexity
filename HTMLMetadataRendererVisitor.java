@@ -70,7 +70,8 @@ public class HTMLMetadataRendererVisitor extends GenericReflectiveVisitor implem
 	}
 
 	public void forCicle(Alignment align){
-		int gen = 0;
+        String extensionString = "";
+        int gen = 0;
 		for ( String[] ext : align.getExtensions() ){
 			String prefix = ext[0];
 			String name = ext[1];
@@ -81,7 +82,7 @@ public class HTMLMetadataRendererVisitor extends GenericReflectiveVisitor implem
 			}
 			if ( tag.equals("align") ) { tag = name; }
 			else { tag += ":"+name; }
-			String extensionString += "  <"+tag+">"+ext[2]+"</"+tag+">\n";
+			extensionString += "  <"+tag+">"+ext[2]+"</"+tag+">\n";
 		}
 	}
 

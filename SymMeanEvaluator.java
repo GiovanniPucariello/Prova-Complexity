@@ -68,25 +68,29 @@ public class SymMeanEvaluator extends BasicEvaluator implements Evaluator {
         return eval(params, (Object) null);
     }
 
+    public void ifS2NotNull(Set<Cell> s2, Cell c1, LoadedOntology onto2) throws OntowrapException {
+        if (s2 != null) {
+            for (Cell c2 : s2) {
+                if (c1.getObject2() == c2.getObject2()) {
+                    if (onto2.isClass(c1.getObject2())) {
+                        classScore = classScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
+                    } else if (onto2.isProperty(c1.getObject2())) {
+                        propScore = propScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
+                    } else {
+                        indScore = indScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
+                    }
+                }
+            }
+        }
+    }
+
     public void forCicle(LoadedOntology onto1, int nbClassCell,int nbIndCell, int nbPropCell, LoadedOntology onto2) throws OntowrapException, AlignmentException {
         for (Cell c1 : align1) {
             if (onto1.isClass(c1.getObject1())) nbClassCell++;
             else if (onto1.isProperty(c1.getObject1())) nbPropCell++;
             else nbIndCell++;
             Set<Cell> s2 = align2.getAlignCells1(c1.getObject1());
-            if (s2 != null) {
-                for (Cell c2 : s2) {
-                    if (c1.getObject2() == c2.getObject2()) {
-                        if (onto2.isClass(c1.getObject2())) {
-                            classScore = classScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
-                        } else if (onto2.isProperty(c1.getObject2())) {
-                            propScore = propScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
-                        } else {
-                            indScore = indScore + 1 - Math.abs(c2.getStrength() - c1.getStrength());
-                        }
-                    }
-                }
-            }
+            this.ifS2NotNull(s2,c1,onto2);
         }
     }
 

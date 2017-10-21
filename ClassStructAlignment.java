@@ -107,6 +107,20 @@ public class ClassStructAlignment extends DistanceAlignment implements Alignment
 		}
 	}
 
+	public void checkCorrespondance(Set<? extends Object> properties1,Set<? extends Object> properties2,double attsum) throws AlignmentException {
+		for ( Object prp : properties1 ){
+			Set<Cell> s2 = getAlignCells1( prp );
+			// Find the property with the higest similarity
+			// that is matched here
+			double currentValue = 0.;
+			if ( s2 != null ) {
+				this.findProp(currentValue,properties2,s2);
+			}
+			attsum = attsum + 1 - currentValue;
+		}
+	}
+
+
     /** Processing **/
     // Could better use similarity
     public void align( Alignment alignment, Properties params ) throws AlignmentException {
@@ -166,16 +180,10 @@ public class ClassStructAlignment extends DistanceAlignment implements Alignment
 			double attsum = 0.;
 			// check that there is a correspondance
 			// in list of class2 atts and add their weights
-			for ( Object prp : properties1 ){
-			    Set<Cell> s2 = getAlignCells1( prp );
-			    // Find the property with the higest similarity
-			    // that is matched here
-			    double currentValue = 0.;
-			    if ( s2 != null ) {
-				this.findProp(currentValue,properties2,s2);
-			    }
-			    attsum = attsum + 1 - currentValue;
-			}
+
+				this.checkCorrespondance(properties1,properties2,attsum);
+
+
 			classmatrix[i][j] = classmatrix[i][j]
 			    + pic2 * (2 * attsum / (nba1 + nba2));
 		    }

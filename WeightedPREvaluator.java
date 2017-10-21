@@ -115,18 +115,35 @@ public class WeightedPREvaluator extends BasicEvaluator implements Evaluator {
 			nbexpected += c1.getStrength();
 			Set<Cell> s2 = align2.getAlignCells1( c1.getObject1() );
 			double diff = -1.0;
-			if( s2 != null ){
-				for( Cell c2 : s2 ) {
-					URI uri2 = c2.getObject2AsURI();
-					if ( uri1.equals( uri2 )
-							&& ( !relsensitive || c1.getRelation().equals( c2.getRelation() ) ) ) {
-						diff = c1.getStrength() - c2.getStrength();
-						nbcorrect1 += ((diff>0.)?diff:-diff); //1. -
-						break;
-					}
+			this.ifS2NotNull(s2,uri1,c1,diff);
+			if ( diff == -1.0 ) nbcorrect1 += c1.getStrength(); // the c1 not found
+		}
+	}
+	public void ifS2NotNull(Set<Cell> s2, URI uri1, Cell c1, double diff) throws AlignmentException {
+        if( s2 != null ){
+            for( Cell c2 : s2 ) {
+                URI uri2 = c2.getObject2AsURI();
+                if ( uri1.equals( uri2 )
+                        && ( !relsensitive || c1.getRelation().equals( c2.getRelation() ) ) ) {
+                    diff = c1.getStrength() - c2.getStrength();
+                    nbcorrect1 += ((diff>0.)?diff:-diff); //1. -
+                    break;
+                }
+            }
+        }
+    }
+
+	public void ifS1NotNull(URI uri2, Set<Cell> s1, double diff, Cell c2) throws AlignmentException {
+		if( s1 != null ){
+			for( Cell c1 : s1 ) {
+				URI uri1 = c1.getObject2AsURI();
+				if ( uri2.equals( uri1 )
+						&& ( !relsensitive || c1.getRelation().equals( c2.getRelation() ) ) ) {
+					diff = c1.getStrength() - c2.getStrength();
+					nbcorrect2 += ((diff>0.)?diff:-diff); //1. -
+					break;
 				}
 			}
-			if ( diff == -1.0 ) nbcorrect1 += c1.getStrength(); // the c1 not found
 		}
 	}
 
@@ -136,17 +153,9 @@ public class WeightedPREvaluator extends BasicEvaluator implements Evaluator {
 			nbfound += c2.getStrength();
 			Set<Cell> s1 = align1.getAlignCells1( c2.getObject1() );
 			double diff = -1.0;
-			if( s1 != null ){
-				for( Cell c1 : s1 ) {
-					URI uri1 = c1.getObject2AsURI();
-					if ( uri2.equals( uri1 )
-							&& ( !relsensitive || c1.getRelation().equals( c2.getRelation() ) ) ) {
-						diff = c1.getStrength() - c2.getStrength();
-						nbcorrect2 += ((diff>0.)?diff:-diff); //1. -
-						break;
-					}
-				}
-			}
+
+			this.ifS1NotNull(uri2,s1,diff,c2);
+
 			if ( diff == -1.0 ) nbcorrect2 += c2.getStrength(); // the c2 not found
 		}
 	}

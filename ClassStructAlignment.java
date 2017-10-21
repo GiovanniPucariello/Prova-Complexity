@@ -24,6 +24,7 @@ import java.util.Vector;
 import java.util.Set;
 import java.util.Properties;
 
+import com.sun.corba.se.spi.ior.ObjectKey;
 import org.semanticweb.owl.align.Alignment;
 import org.semanticweb.owl.align.AlignmentProcess;
 import org.semanticweb.owl.align.Cell;
@@ -120,9 +121,31 @@ public class ClassStructAlignment extends DistanceAlignment implements Alignment
 		}
 	}
 
+	public void forCicle(int i, int nbclass1, Vector<Object> classlist1,Vector<Object> classlist2, HeavyLoadedOntology<Object> honto1, HeavyLoadedOntology<Object> honto2, int j ,int nbclass2, double[][] classmatrix ,double pic2) throws AlignmentException, OntowrapException {
+		for (i = 0; i < nbclass1; i++) {
+			Set<? extends Object> properties1 = honto1.getProperties(classlist1.get(i), OntologyFactory.ANY, OntologyFactory.ANY, OntologyFactory.ANY);
+			int nba1 = properties1.size();
+			if (nba1 > 0) { // if not, keep old values...
+				//Set correspondences = new HashSet();
+				for (j = 0; j < nbclass2; j++) {
+					Set<? extends Object> properties2 = honto2.getProperties(classlist2.get(j), OntologyFactory.ANY, OntologyFactory.ANY, OntologyFactory.ANY);
+					int nba2 = properties2.size();
+					double attsum = 0.;
+					// check that there is a correspondance
+					// in list of class2 atts and add their weights
 
+					this.checkCorrespondance(properties1, properties2, attsum);
+
+
+					classmatrix[i][j] = classmatrix[i][j]
+							+ pic2 * (2 * attsum / (nba1 + nba2));
+				}
+			}
+		}
+	}
     /** Processing **/
     // Could better use similarity
+
     public void align( Alignment alignment, Properties params ) throws AlignmentException {
 	loadInit( alignment );
 	honto1 = (HeavyLoadedOntology<Object>)getOntologyObject1();
@@ -169,26 +192,7 @@ public class ClassStructAlignment extends DistanceAlignment implements Alignment
 	//  (sigma (att in c[i]) getAllignCell... )
 	//  / nbatts of c[i] + nbatts of c[j]
 	try {
-	    for ( i=0; i<nbclass1; i++ ){
-		Set<? extends Object> properties1 = honto1.getProperties( classlist1.get(i), OntologyFactory.ANY, OntologyFactory.ANY, OntologyFactory.ANY );
-		int nba1 = properties1.size();
-		if ( nba1 > 0 ) { // if not, keep old values...
-		    //Set correspondences = new HashSet();
-		    for ( j=0; j<nbclass2; j++ ){
-			Set<? extends Object> properties2 = honto2.getProperties( classlist2.get(j), OntologyFactory.ANY, OntologyFactory.ANY, OntologyFactory.ANY );
-			int nba2 = properties2.size();
-			double attsum = 0.;
-			// check that there is a correspondance
-			// in list of class2 atts and add their weights
-
-				this.checkCorrespondance(properties1,properties2,attsum);
-
-
-			classmatrix[i][j] = classmatrix[i][j]
-			    + pic2 * (2 * attsum / (nba1 + nba2));
-		    }
-		}
-	    }
+	   this.forCicle(i,nbclass1,classlist1,classlist2,honto1,honto2,j,nbclass2,classmatrix,pic2);
 	} catch ( OntowrapException owex ) {
 	    throw new AlignmentException( "Cannot navigate properties", owex );
 	}

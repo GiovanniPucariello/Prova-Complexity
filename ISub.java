@@ -63,6 +63,20 @@ public class ISub {
         s2 = new String( newString );
     }
 
+    public double hachmacherProfuct(double unmatchedS1, double unmatchedS2, double dissimilarity, double commonality, double winklerImprovement ){
+        double suma = unmatchedS1 + unmatchedS2;
+        double product = unmatchedS1 * unmatchedS2;
+        double p = 0.6;   //For 1 it coincides with the algebraic product
+        if( (suma-product) == 0 )
+            dissimilarity = 0;
+        else
+            dissimilarity = (product)/(p+(1-p)*(suma-product));
+
+        // Modification JE: returned normalization (instead of [-1 1])
+        double result = commonality - dissimilarity + winklerImprovement;
+        return (result+1)/2;
+    }
+
 	public double score( String st1 , String st2 ){
 		
 		// JE: This should throw an error
@@ -150,17 +164,7 @@ public class ISub {
 		/**
 		 * Hamacher Product
 		 */
-		double suma = unmatchedS1 + unmatchedS2;
-		double product = unmatchedS1 * unmatchedS2;
-		double p = 0.6;   //For 1 it coincides with the algebraic product
-		if( (suma-product) == 0 )
-			dissimilarity = 0;
-		else
-			dissimilarity = (product)/(p+(1-p)*(suma-product));
-		
-		// Modification JE: returned normalization (instead of [-1 1])
-		double result = commonality - dissimilarity + winklerImprovement;
-		return (result+1)/2;
+		return this.hachmacherProfuct(unmatchedS1,unmatchedS2,dissimilarity,commonality,winklerImprovement);
 	}
 	
 	private double winklerImprovement( String s1 , String s2 , double commonality ){

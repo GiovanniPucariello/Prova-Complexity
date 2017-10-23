@@ -63,7 +63,7 @@ public class ISub {
         s2 = new String( newString );
     }
 
-    public double hachmacherProfuct(double unmatchedS1, double unmatchedS2, double dissimilarity, double commonality, double winklerImprovement ){
+    public double hachmacherProduct(double unmatchedS1, double unmatchedS2, double dissimilarity, double commonality, double winklerImprovement ){
         double suma = unmatchedS1 + unmatchedS2;
         double product = unmatchedS1 * unmatchedS2;
         double p = 0.6;   //For 1 it coincides with the algebraic product
@@ -75,6 +75,41 @@ public class ISub {
         // Modification JE: returned normalization (instead of [-1 1])
         double result = commonality - dissimilarity + winklerImprovement;
         return (result+1)/2;
+    }
+
+    public void whileBlock(String s1, String s2 ,int best, int l1, int l2, double common){
+        while( s1.length() >0 && s2.length() >0 && best !=0 ){
+            best = 0;
+
+            l1 = s1.length();
+            l2 = s2.length();
+
+            int i = 0; // iterates through s1
+            int j = 0; // iterates through s2
+
+            int startS2 = 0;
+            int endS2 = 0;
+            int startS1 = 0;
+            int endS1 = 0;
+            int p=0;
+
+            for( i = 0; (i < l1) && (l1 - i > best); i++) {
+                this.forCicle(j,l2,l1,s1,s2,best,i,p,startS1,startS2,endS1,endS2);
+            }
+
+            char[] newString = new char[ s1.length() - (endS1 - startS1) ];
+
+            this.forS1S2(j,newString,i,startS1,endS1,endS2,startS2,s1,s2);
+
+            if( best > 2 )
+                common += best;
+            else
+                best = 0;
+
+            //System.out.println( s1 + ":" + s2 );
+            //System.out.println( "StartS1 : " + startS1 + " EndS1: " + endS1 );
+            //System.out.println( "StartS2 : " + startS2 + " EndS2: " + endS2 );
+        }
     }
 
 	public double score( String st1 , String st2 ){
@@ -107,44 +142,7 @@ public class ISub {
 
 		int max = Math.min(l1, l2); // the maximal length of a subs
 	
-		while( s1.length() >0 && s2.length() >0 && best !=0 ){
-			best = 0; // the best subs length so far
-		
-			l1 = s1.length(); // length of s
-			l2 = s2.length(); // length of t
-		
-			int i = 0; // iterates through s1
-			int j = 0; // iterates through s2
-		
-			int startS2 = 0;
-			int endS2 = 0;
-			int startS1 = 0;
-			int endS1 = 0;
-			int p=0;
-		
-			for( i = 0; (i < l1) && (l1 - i > best); i++) {
-				this.forCicle(j,l2,l1,s1,s2,best,i,p,startS1,startS2,endS1,endS2);
-			}
-			//Vector v = new Vector();
-			//if( startS1 != endS1 )
-			//	System.out.println(  s1.substring( startS1 , endS1 ) );
-			char[] newString = new char[ s1.length() - (endS1 - startS1) ];
-		
-			this.forS1S2(j,newString,i,startS1,endS1,endS2,startS2,s1,s2);
-
-			//if( (startS1 < 1 || startS1 > 2 )
-			//	||	(startS2 < 1 || startS2 > 2) && startS1 != startS2  )
-			//	best--;
-
-			if( best > 2 )
-				common += best;
-			else
-				best = 0;
-
-		//System.out.println( s1 + ":" + s2 );
-		//System.out.println( "StartS1 : " + startS1 + " EndS1: " + endS1 );
-		//System.out.println( "StartS2 : " + startS2 + " EndS2: " + endS2 );
-		}
+		this.whileBlock(s1,s2,best,l1,l2,common);
 
 		double commonality = 0;
 		double scaledCommon = (2*common)/(L1+L2);
@@ -164,7 +162,7 @@ public class ISub {
 		/**
 		 * Hamacher Product
 		 */
-		return this.hachmacherProfuct(unmatchedS1,unmatchedS2,dissimilarity,commonality,winklerImprovement);
+		return this.hachmacherProduct(unmatchedS1,unmatchedS2,dissimilarity,commonality,winklerImprovement);
 	}
 	
 	private double winklerImprovement( String s1 , String s2 , double commonality ){

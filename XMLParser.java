@@ -267,40 +267,15 @@ public class XMLParser extends DefaultHandler {
 	public void startElement(String namespaceURI, String pName, String qname, Attributes atts) throws SAXException {
 		if (debugMode > 2) System.err.println("startElement XMLParser : " + pName);
 		parseLevel++;
-		if (namespaceURI.equals(Namespace.ALIGNMENT.uri + "#")
-				|| namespaceURI.equals(Namespace.ALIGNMENT.uri)) {
 
-			this.ifEqAlUri(pName, atts);
+		 this.startElementA(pName,atts,namespaceURI);
 
-		} else if (pName.equals(SyntaxElement.ENTITY1.name)) {
 
-		    this.ifEqEntityName(atts);
-
-		} else if (pName.equals(SyntaxElement.CELL.name)) {
-
-		    this.ifEqCellName(atts);
-
-		} else if (pName.equals(SyntaxElement.MAP.name)) {//"map"
-
-            this.ifEqClassName();
-
-		} else if (pName.equals(SyntaxElement.FORMALISM.name)) {
-
-		    this.ifEqFormalismName(atts);
-
-		}
 		      //Issue#8394 : assegnata a Vincenzo Plantone
 		  //else if (pName.equals(SyntaxElement.FORMATT.name)) {
 		  //} else if (pName.equals(SyntaxElement.LOCATION.name)) {
-          else if (pName.equals(SyntaxElement.ONTOLOGY.name)) {
 
-		    this.ifOntologyName(atts);
 
-		} else if (pName.equals(SyntaxElement.MAPPING_TARGET.name)) {
-			curronto = onto2;
-		} else if (pName.equals(SyntaxElement.MAPPING_SOURCE.name)) {
-			curronto = onto1;
-		}
 		     //Issue#8394 : assegnata a Vincenzo Plantone
 		//else if (pName.equals("uri2")) { // Legacy
 		//} else if (pName.equals("uri1")) { // Legacy
@@ -308,29 +283,7 @@ public class XMLParser extends DefaultHandler {
 		//} else if (pName.equals(SyntaxElement.LEVEL.name)) {
 		//} else if (pName.equals(SyntaxElement.XML.name)) {
 		//}
-		else if (pName.equals(SyntaxElement.ALIGNMENT.name)) {
 
-		    this.ifAlignName(atts);
-			;
-		} else if (debugMode > 0) {
-			System.err.println("[XMLParser] Unknown element name : " + pName);
-		}
-		else if (namespaceURI.equals(Namespace.SOAP_ENV.prefix)) {
-
-		    this.ifSoapPrefix(pName);
-
-		} else if (namespaceURI.equals(Namespace.RDF.prefix)){
-
-		    this.ifRDFPrefix(pName);
-
-		} else if (namespaceURI.equals(Namespace.EDOAL.prefix))
-
-		{
-			throw new SAXException("[XMLParser] EDOAL alignment must have type EDOAL: " + pName);
-		} else {
-			if (alignLevel != -1 && parseLevel != 3 && parseLevel != 5 && !embedded)
-				throw new SAXException("[XMLParser(" + parseLevel + ")] Unknown namespace : " + namespaceURI);
-		}
 
 	}
 
@@ -597,5 +550,122 @@ public class XMLParser extends DefaultHandler {
             throw new SAXException("[XMLParser] unknown element name: " + pName);
         }
     }
+
+    public void startElementA(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (namespaceURI.equals(Namespace.ALIGNMENT.uri + "#")
+                || namespaceURI.equals(Namespace.ALIGNMENT.uri)) {
+
+            this.ifEqAlUri(pName, atts);
+
+        }else{
+            this.startElementB(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementB(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.ENTITY1.name)) {
+
+            this.ifEqEntityName(atts);
+
+        }else{
+            this.startElementC(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementC(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.CELL.name)) {
+
+            this.ifEqCellName(atts);
+
+        }else{
+            this.startElementD(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementD(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.MAP.name)) {//"map"
+
+            this.ifEqClassName();
+
+        }else{
+            this.startElementE(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementE(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.FORMALISM.name)) {
+
+            this.ifEqFormalismName(atts);
+
+        }else{
+            this.startElementF(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementF(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.ONTOLOGY.name)) {
+
+            this.ifOntologyName(atts);
+
+        }else{
+            this.startElementG(pName,atts,namespaceURI);
+
+        }
+    }
+
+    public void startElementG(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.MAPPING_TARGET.name)) {
+            curronto = onto2;
+        } else if (pName.equals(SyntaxElement.MAPPING_SOURCE.name)) {
+            curronto = onto1;
+        }else{
+            this.startElementH(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementH(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (pName.equals(SyntaxElement.ALIGNMENT.name)) {
+
+            this.ifAlignName(atts);
+
+        }else{
+            this.startElementI(pName,atts,namespaceURI);
+        }
+    }
+
+    public void startElementI(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (debugMode > 0) {
+            System.err.println("[XMLParser] Unknown element name : " + pName);
+        }
+        else if (namespaceURI.equals(Namespace.SOAP_ENV.prefix)) {
+
+            this.ifSoapPrefix(pName);
+
+        }else{
+            this.startElementL();
+        }
+    }
+
+    public void startElementL(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (namespaceURI.equals(Namespace.RDF.prefix)){
+
+            this.ifRDFPrefix(pName);
+
+        }else{
+            this.startElementM(pName,atts,namespaceURI);
+
+        }
+    }
+
+    public void startElementM(String pName,Attributes atts,String namespaceURI) throws SAXException {
+        if (namespaceURI.equals(Namespace.EDOAL.prefix)) {
+            throw new SAXException("[XMLParser] EDOAL alignment must have type EDOAL: " + pName);
+        } else {
+            if (alignLevel != -1 && parseLevel != 3 && parseLevel != 5 && !embedded)
+                throw new SAXException("[XMLParser(" + parseLevel + ")] Unknown namespace : " + namespaceURI);
+        }
+    }
+
+
 }//end class
     

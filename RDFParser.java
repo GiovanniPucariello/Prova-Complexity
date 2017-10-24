@@ -738,7 +738,7 @@ public class RDFParser {
         }
     }
 
-    
+
 	protected ClassExpression parseClass( final Resource node ) throws AlignmentException {
 
         this.ifDebugMaj1(node);
@@ -804,95 +804,176 @@ public class RDFParser {
 
     // rdf:parseType="Collection" is supposed to preserve the order ()
     // Jena indeed always preserves the order so this can be used
+
+    public void propertyExpressionA(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+        if (node.hasProperty((Property) SyntaxElement.AND.resource)) {
+            op = SyntaxElement.AND.getOperator();
+            stmt = node.getProperty((Property) SyntaxElement.AND.resource);
+        }else{
+            this.propertyExpressionB(  node,  stmt,  op);
+        }
+    }
+
+    public void propertyExpressionB(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+        if (node.hasProperty((Property) SyntaxElement.OR.resource)) {
+            op = SyntaxElement.OR.getOperator();
+            stmt = node.getProperty((Property) SyntaxElement.OR.resource);
+        }else{
+            this.propertyExpressionC( node,  stmt,  op);
+        }
+    }
+
+    public void propertyExpressionC(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+        if (node.hasProperty((Property) SyntaxElement.COMPOSE.resource)) {
+            op = SyntaxElement.COMPOSE.getOperator();
+            stmt = node.getProperty((Property) SyntaxElement.COMPOSE.resource);
+        }else{
+            this.propertyExpressionD( node,  stmt,  op);
+        }
+    }
+
+    public void propertyExpressionD(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+        if (node.hasProperty((Property) SyntaxElement.NOT.resource)) {
+            op = SyntaxElement.NOT.getOperator();
+            stmt = node.getProperty((Property) SyntaxElement.NOT.resource);
+        }else{
+            this.propertyExpressionE(node);
+        }
+    }
+
+    public void ifJena(Object o, Resource coll, Constructor op, List<PathExpression> clexpr, final Resource node) throws AlignmentException {
+        if (o instanceof Resource) coll = (Resource) o;
+        if (o instanceof Literal && !o.toString().equals(""))
+            throw new AlignmentException("Invalid content of constructor : " + o);
+        if (op == SyntaxElement.NOT.getOperator()) {
+            if (coll == null)
+                throw new AlignmentException("NOT constructor cannot be empty : " + node);
+            clexpr.add(parseProperty(coll));
+        }
+    }
+
+    public void ifOpCompose(Object o, Resource coll, Constructor op, List<PathExpression> clexpr, final Resource node) throws AlignmentException {
+        if ( coll == null )
+            throw new AlignmentException( "COMPOSE constructor for properties cannot be empty : "+node );
+        while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
+            // In this present case, it is a series of Relations followed by a Property
+            Resource newcoll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
+            if ( !RDF.nil.getURI().equals( newcoll.getURI() ) ) {
+                clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
+            } else {
+                clexpr.add( parseProperty( coll.getProperty( RDF.first ).getResource() ) );
+            }
+            coll = newcoll;
+        }
+    }
+
+    public PropertyExpression propertyExpressionE(final Resource node) throws AlignmentException {
+        if ( isPattern ) { // not necessarily with a variable (real patterns)
+            return new PropertyId();
+        } else {
+            throw new AlignmentException( "Property statement must containt one constructor or Id : "+node );
+        }
+    }
+
+    public PropertyExpression ifPropDomain(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+
+        stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
+        RDFNode nn = stmt.getObject();
+        if ( nn.isResource() ) {
+            return new PropertyDomainRestriction( parseClass( (Resource)nn ) );
+        } else {
+            throw new AlignmentException( "Incorrect class expression "+nn );
+        }
+    }
+
+    public PropertyExpression ifPropValueCond(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+
+        // Find comparator
+        stmt = node.getProperty( (Property)SyntaxElement.COMPARATOR.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required edoal:comparator property" );
+        URI id = getNodeId( stmt.getResource() );
+        if ( id == null ) throw new AlignmentException("edoal:comparator requires and URI");
+        Comparator comp = Comparator.getComparator( id );
+        stmt = node.getProperty( (Property)SyntaxElement.VALUE.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required edoal:value property" );
+        ValueExpression v = parseValue( stmt.getObject() );
+        return new PropertyValueRestriction( comp, v );
+    }
+
+    public PropertyExpression ifPropTypeCond(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+
+        stmt = node.getProperty( (Property)SyntaxElement.EDATATYPE.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required "+SyntaxElement.EDATATYPE.print()+" property" );
+        return new PropertyTypeRestriction( parseDatatype( stmt.getObject() ) );
+    }
+
+    public PropertyExpression ifPropExpr(final Resource node, Statement stmt, Constructor op) throws AlignmentException {
+
+        URI id = getNodeId(node);
+        if (id != null) {
+            return new PropertyId(id);
+        } else {
+            this.propertyExpressionA(node, stmt, op);
+        }
+        return null;
+    }
+
+    public PropertyExpression elseCompose(final Resource node, Statement stmt, Constructor op,Resource coll, List<PathExpression> clexpr) throws AlignmentException {
+        // This is a first/rest statements
+        if ( coll != null ) {
+            while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
+                clexpr.add( parseProperty( coll.getProperty( RDF.first ).getResource() ) );
+                coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
+            }
+        }
+        return new PropertyConstruction( op, clexpr );
+    }
+
+
     protected PropertyExpression parseProperty( final Resource node ) throws AlignmentException {
-	Resource rdfType = node.getProperty(RDF.type).getResource();
-	Statement stmt = null;
+
+        Resource rdfType = node.getProperty(RDF.type).getResource();
+	    Statement stmt = null;
+        Constructor op= null;
+        List<PathExpression> clexpr = new LinkedList<PathExpression>();
+        Object o = stmt.getObject();
+        Resource coll = null; // Errors if null tackled below
+
 	if ( rdfType.equals( SyntaxElement.PROPERTY_EXPR.resource ) ) {
-	    URI id = getNodeId( node );
-	    if ( id != null ) {
-		return new PropertyId( id );
-	    } else {
-		Constructor op = null;
-		List<PathExpression> clexpr = new LinkedList<PathExpression>();
-		if ( node.hasProperty( (Property)SyntaxElement.AND.resource ) ) {
-		    op = SyntaxElement.AND.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.AND.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.OR.resource ) ) { 
-		    op = SyntaxElement.OR.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.OR.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.COMPOSE.resource ) ) { 
-		    op = SyntaxElement.COMPOSE.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.COMPOSE.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.NOT.resource ) ) {
-		    op = SyntaxElement.NOT.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.NOT.resource );
-		} else {
-		    if ( isPattern ) { // not necessarily with a variable (real patterns)
-			return new PropertyId();
-		    } else {
-			throw new AlignmentException( "Property statement must containt one constructor or Id : "+node );
-		    }
-		}
+
+	    this.ifPropExpr(node,stmt,op);
+
 		// Jena encode these collections as first/rest statements
-		Object o = stmt.getObject();
-		Resource coll = null; // Errors if null tackled below
-		if ( o instanceof Resource) coll = (Resource)o;
-		if ( o instanceof Literal && !o.toString().equals("") )
-		    throw new AlignmentException( "Invalid content of constructor : "+o );
-		if ( op == SyntaxElement.NOT.getOperator() ) {
-		    if ( coll == null )
-		    	throw new AlignmentException( "NOT constructor cannot be empty : "+node );
-		    clexpr.add( parseProperty( coll ) );
+
+
+        this.ifJena(o,coll,op,clexpr,node);
+
 		} else if ( op == SyntaxElement.COMPOSE.getOperator() ) {
-		    if ( coll == null )
-		    	throw new AlignmentException( "COMPOSE constructor for properties cannot be empty : "+node );
-		    while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
-			// In this present case, it is a series of Relations followed by a Property
-			Resource newcoll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
-			if ( !RDF.nil.getURI().equals( newcoll.getURI() ) ) {
-			    clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
-			} else {
-			    clexpr.add( parseProperty( coll.getProperty( RDF.first ).getResource() ) );
-			}
-			coll = newcoll;
-		    }
-		} else { // This is a first/rest statements
-		    if ( coll != null ) {
-			while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
-			    clexpr.add( parseProperty( coll.getProperty( RDF.first ).getResource() ) );
-			    coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
-			}
-		    }
+
+	    this.ifOpCompose(o,coll,op,clexpr,node);
+
+		} else {
+	    this.elseCompose(node,stmt,op,coll,clexpr);
+
 		}
-		return new PropertyConstruction( op, clexpr );
-	    }
-	} else if ( rdfType.equals( SyntaxElement.PROPERTY_DOMAIN_COND.resource ) ) {
-	    stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
-	    RDFNode nn = stmt.getObject();
-	    if ( nn.isResource() ) {
-		return new PropertyDomainRestriction( parseClass( (Resource)nn ) );
-	    } else {
-		throw new AlignmentException( "Incorrect class expression "+nn );
-	    } 
+		if ( rdfType.equals( SyntaxElement.PROPERTY_DOMAIN_COND.resource ) ) {
+
+	    this.ifPropDomain(node,stmt,op);
+
 	} else if ( rdfType.equals( SyntaxElement.PROPERTY_TYPE_COND.resource ) ) {
-	    stmt = node.getProperty( (Property)SyntaxElement.EDATATYPE.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required "+SyntaxElement.EDATATYPE.print()+" property" );
-	    return new PropertyTypeRestriction( parseDatatype( stmt.getObject() ) );
+
+	    this.ifPropTypeCond(node,stmt,op);
+
+
 	} else if ( rdfType.equals( SyntaxElement.PROPERTY_VALUE_COND.resource ) ) {
-	    // Find comparator
-	    stmt = node.getProperty( (Property)SyntaxElement.COMPARATOR.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:comparator property" );
-	    URI id = getNodeId( stmt.getResource() );
-	    if ( id == null ) throw new AlignmentException("edoal:comparator requires and URI");
-	    Comparator comp = Comparator.getComparator( id );
-	    stmt = node.getProperty( (Property)SyntaxElement.VALUE.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:value property" );
-	    ValueExpression v = parseValue( stmt.getObject() );
-	    return new PropertyValueRestriction( comp, v );
+
+	    this.ifPropValueCond(node,stmt,op);
+
 	} else {
 	    throw new AlignmentException("There is no pasrser for entity "+rdfType.getLocalName());
 	}
+     return null;
     }
 
     protected Datatype parseDatatype ( final RDFNode nn ) throws AlignmentException {
@@ -909,93 +990,156 @@ public class RDFParser {
 	return new Datatype( uri );
     }
 
+
+    public void RelationExpressionA(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if (node.hasProperty((Property) SyntaxElement.AND.resource)) {
+            op = SyntaxElement.AND.getOperator();
+            stmt = node.getProperty((Property) SyntaxElement.AND.resource);
+        }else{
+            this.RelationExpressionB(node,op,stmt);
+        }
+    }
+    public void RelationExpressionB(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( node.hasProperty( (Property)SyntaxElement.OR.resource ) ) {
+            op = SyntaxElement.OR.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.OR.resource );
+        }else{
+            this.RelationExpressionC(node,op,stmt);
+        }
+    }
+    public void RelationExpressionC(final Resource node, Constructor op, Statement stmt) throws AlignmentException{
+        if ( node.hasProperty( (Property)SyntaxElement.COMPOSE.resource ) ) {
+            op = SyntaxElement.COMPOSE.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.COMPOSE.resource );
+        }else{
+            this.RelationExpressionD(node,op,stmt);
+        }
+    }
+    public void RelationExpressionD(final Resource node, Constructor op, Statement stmt) throws AlignmentException{
+        if ( node.hasProperty( (Property)SyntaxElement.NOT.resource ) ) {
+            op = SyntaxElement.NOT.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.NOT.resource );
+        }else{
+            this.RelationExpressionE(node,op,stmt);
+        }
+    }
+    public void RelationExpressionE(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( node.hasProperty( (Property)SyntaxElement.INVERSE.resource ) ) {
+            op = SyntaxElement.INVERSE.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.INVERSE.resource );
+        }else{
+            this.RelationExpressionF(node,op,stmt);
+        }
+    }
+    public void RelationExpressionF(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( node.hasProperty( (Property)SyntaxElement.REFLEXIVE.resource ) ) {
+            op = SyntaxElement.REFLEXIVE.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.REFLEXIVE.resource );
+        }else{
+            this.RelationExpressionG(node,op,stmt);
+        }
+    }
+    public void RelationExpressionG(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( node.hasProperty( (Property)SyntaxElement.SYMMETRIC.resource ) ) {
+            op = SyntaxElement.SYMMETRIC.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.SYMMETRIC.resource );
+        }else{
+            this.RelationExpressionH(node,op,stmt);
+        }
+    }
+    public void RelationExpressionH(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( node.hasProperty( (Property)SyntaxElement.TRANSITIVE.resource ) ) {
+            op = SyntaxElement.TRANSITIVE.getOperator();
+            stmt = node.getProperty( (Property)SyntaxElement.TRANSITIVE.resource );
+        }else{
+            this.RelationExpressionI(node,op,stmt);
+        }
+    }
+    public RelationExpression RelationExpressionI(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+        if ( isPattern ) { // not necessarily with a variable (real patterns)
+            return new RelationId();
+        } else {
+            throw new AlignmentException( "Relation statement must containt one constructor or Id : "+node );
+        }
+    }
+    public void ifJena(final Resource node,Object o, Constructor op, List<PathExpression> clexpr, Resource coll) throws AlignmentException {
+        if ( o instanceof Resource) coll = (Resource)o;
+        if ( o instanceof Literal && !o.toString().equals("") )
+            throw new AlignmentException( "Invalid content of constructor : "+o );
+        if ( op == SyntaxElement.NOT.getOperator() ||
+                op == SyntaxElement.INVERSE.getOperator() ||
+                op == SyntaxElement.REFLEXIVE.getOperator() ||
+                op == SyntaxElement.SYMMETRIC.getOperator() ||
+                op == SyntaxElement.TRANSITIVE.getOperator() ) {
+            if ( coll == null )
+                throw new AlignmentException( op+" constructor cannot be empty : "+node );
+            clexpr.add( parseRelation( coll ) );
+        } else { // This is a first/rest statements
+            if ( coll != null ) {
+                while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
+                    clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
+                    coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
+                }
+            }
+        }
+    }
+    public RelationExpression ifRelationDomain(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+
+        stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
+        RDFNode nn = stmt.getObject();
+        if ( nn.isResource() ) {
+            return new RelationDomainRestriction( parseClass( (Resource)nn ) );
+        } else {
+            throw new AlignmentException( "Incorrect class expression "+nn );
+        }
+    }
+    public RelationExpression ifRelationCodomain(final Resource node, Constructor op, Statement stmt) throws AlignmentException {
+
+        stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
+        if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
+        RDFNode nn = stmt.getObject();
+        if ( nn.isResource() ) {
+            return new RelationCoDomainRestriction( parseClass( (Resource)nn ) );
+        } else {
+            throw new AlignmentException( "Incorrect class expression "+nn );
+        }
+    }
+
     protected RelationExpression parseRelation( final Resource node ) throws AlignmentException {
 	Resource rdfType = node.getProperty(RDF.type).getResource();
 	Statement stmt = null;
+        Constructor op = null;
+        // Remains a PathExpression (that this is a relation is checked by typing)
+        List<PathExpression> clexpr = new LinkedList<PathExpression>();
 	if ( rdfType.equals( SyntaxElement.RELATION_EXPR.resource ) ) {
 	    URI id = getNodeId( node );
 	    if ( id != null ) {
 		return new RelationId( id );
 	    } else {
-		Constructor op = null;
-		// Remains a PathExpression (that this is a relation is checked by typing)
-		List<PathExpression> clexpr = new LinkedList<PathExpression>();
-		if ( node.hasProperty( (Property)SyntaxElement.AND.resource ) ) {
-		    op = SyntaxElement.AND.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.AND.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.OR.resource ) ) { 
-		    op = SyntaxElement.OR.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.OR.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.COMPOSE.resource ) ) { 
-		    op = SyntaxElement.COMPOSE.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.COMPOSE.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.NOT.resource ) ) {
-		    op = SyntaxElement.NOT.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.NOT.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.INVERSE.resource ) ) {
-		    op = SyntaxElement.INVERSE.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.INVERSE.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.REFLEXIVE.resource ) ) {
-		    op = SyntaxElement.REFLEXIVE.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.REFLEXIVE.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.SYMMETRIC.resource ) ) {
-		    op = SyntaxElement.SYMMETRIC.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.SYMMETRIC.resource );
-		} else if ( node.hasProperty( (Property)SyntaxElement.TRANSITIVE.resource ) ) {
-		    op = SyntaxElement.TRANSITIVE.getOperator();
-		    stmt = node.getProperty( (Property)SyntaxElement.TRANSITIVE.resource );
-		} else {
-		    if ( isPattern ) { // not necessarily with a variable (real patterns)
-			return new RelationId();
-		    } else {
-			throw new AlignmentException( "Relation statement must containt one constructor or Id : "+node );
-		    }
+
+		this.RelationExpressionA(node,op,stmt);
 		}
 		// Jena encode these collections as first/rest statements
 		Object o = stmt.getObject();
 		Resource coll = null; // Errors if null tackled below
-		if ( o instanceof Resource) coll = (Resource)o;
-		if ( o instanceof Literal && !o.toString().equals("") )
-		    throw new AlignmentException( "Invalid content of constructor : "+o );
-		if ( op == SyntaxElement.NOT.getOperator() ||
-		     op == SyntaxElement.INVERSE.getOperator() || 
-		     op == SyntaxElement.REFLEXIVE.getOperator() || 
-		     op == SyntaxElement.SYMMETRIC.getOperator() || 
-		     op == SyntaxElement.TRANSITIVE.getOperator() ) {
-		    if ( coll == null )
-		    	throw new AlignmentException( op+" constructor cannot be empty : "+node );
-		    clexpr.add( parseRelation( coll ) );
-		} else { // This is a first/rest statements
-		    if ( coll != null ) {
-			while ( !RDF.nil.getURI().equals( coll.getURI() ) ) { 
-			    clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
-			    coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
-			}
-		    }
-		}
+
+        this.ifJena(node,o,op,clexpr,coll);
+
 		return new RelationConstruction( op, clexpr );
 	    }
-	} else if ( rdfType.equals( SyntaxElement.RELATION_DOMAIN_COND.resource ) ) {
-	    stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
-	    RDFNode nn = stmt.getObject();
-	    if ( nn.isResource() ) {
-		return new RelationDomainRestriction( parseClass( (Resource)nn ) );
-	    } else {
-		throw new AlignmentException( "Incorrect class expression "+nn );
-	    } 
+	    if ( rdfType.equals( SyntaxElement.RELATION_DOMAIN_COND.resource ) ) {
+
+	    this.ifRelationDomain(node,op,stmt);
+
 	} else if ( rdfType.equals( SyntaxElement.RELATION_CODOMAIN_COND.resource ) ) {
-	    stmt = node.getProperty( (Property)SyntaxElement.TOCLASS.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:toClass property" );
-	    RDFNode nn = stmt.getObject();
-	    if ( nn.isResource() ) {
-		return new RelationCoDomainRestriction( parseClass( (Resource)nn ) );
-	    } else {
-		throw new AlignmentException( "Incorrect class expression "+nn );
-	    } 
+
+	    this.ifRelationCodomain(node,op,stmt);
+
 	} else {
 	    throw new AlignmentException("There is no pasrser for entity "+rdfType.getLocalName());
 	}
+        return new RelationId();
     }
 
     protected InstanceExpression parseInstance( final Resource node ) throws AlignmentException {

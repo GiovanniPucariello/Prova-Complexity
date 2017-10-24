@@ -1071,15 +1071,22 @@ public class RDFParser {
                 op == SyntaxElement.REFLEXIVE.getOperator() ||
                 op == SyntaxElement.SYMMETRIC.getOperator() ||
                 op == SyntaxElement.TRANSITIVE.getOperator() ) {
-            if ( coll == null )
-                throw new AlignmentException( op+" constructor cannot be empty : "+node );
-            clexpr.add( parseRelation( coll ) );
+            this.ifNot(node,o,op,clexpr,coll);
         } else { // This is a first/rest statements
-            if ( coll != null ) {
-                while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
-                    clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
-                    coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
-                }
+            this.elseJena(node,o,op,clexpr,coll);
+        }
+    }
+    public  void ifNot(final Resource node,Object o, Constructor op, List<PathExpression> clexpr, Resource coll) throws AlignmentException {
+
+        if ( coll == null )
+            throw new AlignmentException( op+" constructor cannot be empty : "+node );
+        clexpr.add( parseRelation( coll ) );
+    }
+    public void elseJena(final Resource node,Object o, Constructor op, List<PathExpression> clexpr, Resource coll) throws AlignmentException {
+        if ( coll != null ) {
+            while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
+                clexpr.add( parseRelation( coll.getProperty( RDF.first ).getResource() ) );
+                coll = coll.getProperty( RDF.rest ).getResource(); // MUSTCHECK
             }
         }
     }
@@ -1155,62 +1162,115 @@ public class RDFParser {
 	}
     }
 
+    public void ifOpResour(final RDFNode node, URI op) throws AlignmentException {
+
+        String operation = ((Resource)node).getProperty( (Property)SyntaxElement.OPERATOR.resource ).getLiteral().getString();
+        try {
+            op = new URI( operation );
+        } catch (URISyntaxException e) {
+            throw new AlignmentException( "edoal:Apply incorrect operation URI : "+operation );
+        }
+    }
+
+    public void isArgResour(List<ValueExpression> valexpr , final RDFNode node) throws AlignmentException {
+
+        Statement stmt = ((Resource)node).getProperty( (Property)SyntaxElement.ARGUMENTS.resource );
+        Resource coll = stmt.getResource(); // MUSTCHECK
+        while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
+            valexpr.add( parseValue( coll.getProperty( RDF.first ).getResource() ) );
+            coll = coll.getProperty( RDF.rest ).getResource();
+        }
+    }
+
+    public void isEtypeResour(final RDFNode node, URI u){
+
+        try {
+            u = new URI( ((Resource)node).getProperty( (Property)SyntaxElement.ETYPE.resource ).getLiteral().getString() );
+        } catch (URISyntaxException urisex) {
+            //throw new AlignmentException( "Incorect URI for edoal:type : "+ ((Resource)node).getProperty( (Property)SyntaxElement.TYPE.resource ).getLiteral().getString() );
+            urisex.printStackTrace();
+        }
+    }
+
+    public Value isStringRes(final RDFNode node) throws AlignmentException {
+
+        if ( ((Resource)node).hasProperty( (Property)SyntaxElement.STRING.resource ) ) {
+            URI u = null;
+            if ( ((Resource)node).hasProperty( (Property)SyntaxElement.ETYPE.resource ) ) {
+                this.isEtypeResour(node,u);
+            }if ( u != null ) {
+                return new Value( ((Resource)node).getProperty( (Property)SyntaxElement.STRING.resource ).getLiteral().getString(), u );
+            } else {
+                return new Value( ((Resource)node).getProperty( (Property)SyntaxElement.STRING.resource ).getLiteral().getString() );
+            }
+        } else {
+            throw new AlignmentException( "edoal:Literal requires a edoal:value" );
+        }
+    }
+
+    public void isLiteralRes(RDFNode node) throws AlignmentException {
+
+        if ( ((Resource)node).hasProperty( (Property)SyntaxElement.STRING.resource ) ) {
+
+            this.isStringRes(node);
+
+        } else {
+            throw new AlignmentException( "edoal:Literal requires a edoal:value" );
+        }
+    }
+
+    public Apply isApplyRes(RDFNode node) throws AlignmentException {
+
+        // Get the operation
+        URI op= null;
+        if ( ((Resource)node).hasProperty( (Property)SyntaxElement.OPERATOR.resource ) ) {
+
+            this.ifOpResour(node,op);
+
+        } else {
+            throw new AlignmentException( "edoal:Apply requires an operation" );
+        }
+        // Get all arguments
+        List<ValueExpression> valexpr = new LinkedList<ValueExpression>();
+        if ( ((Resource)node).hasProperty( (Property)SyntaxElement.ARGUMENTS.resource ) ) {
+
+            this.isArgResour(valexpr,node);
+
+        }
+        return new Apply( op, valexpr );
+    }
+
+    public ValueExpression nodeIsRes(RDFNode node) throws AlignmentException {
+
+        Resource nodeType = ((Resource)node).getProperty(RDF.type).getResource();
+        if ( nodeType.equals( SyntaxElement.INSTANCE_EXPR.resource ) ) {
+            return parseInstance( (Resource)node );
+        } else if ( nodeType.equals( SyntaxElement.LITERAL.resource ) ) {
+
+            this.isLiteralRes(node);
+
+        } else if ( nodeType.equals( SyntaxElement.APPLY.resource ) ) {
+
+            this.isApplyRes(node);
+
+        } else { // Check that pe is a Path??
+            return parsePathExpression( (Resource)node );
+        }
+        return null;
+    }
+
+
     protected ValueExpression parseValue( final RDFNode node ) throws AlignmentException {
-	if ( node.isLiteral() ) { // should not appear anymore
-	    return new Value( ((Literal)node).getString() );
-	} else if ( node.isResource() ) {
-	    Resource nodeType = ((Resource)node).getProperty(RDF.type).getResource();
-	    if ( nodeType.equals( SyntaxElement.INSTANCE_EXPR.resource ) ) {
-		return parseInstance( (Resource)node );
-	    } else if ( nodeType.equals( SyntaxElement.LITERAL.resource ) ) {
-		if ( ((Resource)node).hasProperty( (Property)SyntaxElement.STRING.resource ) ) {
-		    URI u = null;
-		    if ( ((Resource)node).hasProperty( (Property)SyntaxElement.ETYPE.resource ) ) {
-			try {
-			    u = new URI( ((Resource)node).getProperty( (Property)SyntaxElement.ETYPE.resource ).getLiteral().getString() );
-			} catch (URISyntaxException urisex) {
-			    //throw new AlignmentException( "Incorect URI for edoal:type : "+ ((Resource)node).getProperty( (Property)SyntaxElement.TYPE.resource ).getLiteral().getString() );
-			    urisex.printStackTrace();
-			}
-		    }
-		    if ( u != null ) {
-			return new Value( ((Resource)node).getProperty( (Property)SyntaxElement.STRING.resource ).getLiteral().getString(), u );
-		    } else {
-			return new Value( ((Resource)node).getProperty( (Property)SyntaxElement.STRING.resource ).getLiteral().getString() );
-		    }
-		} else {
-		    throw new AlignmentException( "edoal:Literal requires a edoal:value" );
-		}
-	    } else if ( nodeType.equals( SyntaxElement.APPLY.resource ) ) {
-		// Get the operation
-		URI op;
-		if ( ((Resource)node).hasProperty( (Property)SyntaxElement.OPERATOR.resource ) ) {
-		    String operation = ((Resource)node).getProperty( (Property)SyntaxElement.OPERATOR.resource ).getLiteral().getString();
-		    try {
-			op = new URI( operation ); 
-		    } catch (URISyntaxException e) {
-			throw new AlignmentException( "edoal:Apply incorrect operation URI : "+operation );
-		    }
-		} else {
-		    throw new AlignmentException( "edoal:Apply requires an operation" );
-		}
-		// Get all arguments
-		List<ValueExpression> valexpr = new LinkedList<ValueExpression>();
-		if ( ((Resource)node).hasProperty( (Property)SyntaxElement.ARGUMENTS.resource ) ) {
-		    Statement stmt = ((Resource)node).getProperty( (Property)SyntaxElement.ARGUMENTS.resource );
-		    Resource coll = stmt.getResource(); // MUSTCHECK
-		    while ( !RDF.nil.getURI().equals( coll.getURI() ) ) {
-			valexpr.add( parseValue( coll.getProperty( RDF.first ).getResource() ) );
-			coll = coll.getProperty( RDF.rest ).getResource();
-		    }
-		}
-		return new Apply( op, valexpr );
-	    } else { // Check that pe is a Path??
-		return parsePathExpression( (Resource)node );
-	    }
-	} else {
-	    throw new AlignmentException( "Bad edoal:value value" );
-	}
+
+
+        if (node.isLiteral()) { // should not appear anymore
+            return new Value(((Literal) node).getString());
+        } else if (node.isResource()) {
+            return this.nodeIsRes(node);
+        } else {
+            throw new AlignmentException("Bad edoal:value value");
+        }
+
     }
 
     protected URI getNodeId( final Resource node ) throws AlignmentException {

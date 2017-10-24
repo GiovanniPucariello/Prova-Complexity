@@ -719,29 +719,38 @@ public class RDFParser {
 			throw new AlignmentException( "Bad occurence specification : "+nn );
 		}
 	}
-	
 
+	public  ClassExpression ifClassExpr(URI id, final  Resource node, Statement stmt, Constructor op) throws AlignmentException {
+        if ( id != null ) {
+            return new ClassId( id );
+        } else {
+
+
+            return this.elseIdDiffNull(node,stmt,op);
+
+        }
+    }
+
+    public void ifDebugMaj1(final Resource node){
+        if ( debug > 1 ) {
+            StmtIterator it = node.listProperties();
+            while ( it.hasNext() ) System.err.println( "   > "+it.next() );
+        }
+    }
+
+    
 	protected ClassExpression parseClass( final Resource node ) throws AlignmentException {
 
-
-			if ( debug > 1 ) {
-	    StmtIterator it = node.listProperties();
-	    while ( it.hasNext() ) System.err.println( "   > "+it.next() );
-	}
+        this.ifDebugMaj1(node);
 
 	Resource rdfType = node.getProperty(RDF.type).getResource();
 
 	if ( rdfType.equals( SyntaxElement.CLASS_EXPR.resource ) ) {
 	    URI id = getNodeId( node );
-	    if ( id != null ) {
-		return new ClassId( id );
-	    } else {
-		Statement stmt = null;
-		Constructor op = null;
+        Statement stmt=null;
+        Constructor op= null;
+	    this.ifClassExpr(id,node,stmt,op);
 
-		this.elseIdDiffNull(node,stmt,op);
-
-	    }
 	} else {
 
 		this.scndIf(rdfType);
@@ -750,7 +759,7 @@ public class RDFParser {
 	    Comparator comp=null;
 	    // Find onAttribute
 	    Statement stmt = node.getProperty( (Property)SyntaxElement.ONPROPERTY.resource );
-	    if ( stmt == null ) throw new AlignmentException( "Required edoal:onAttribute property" );
+	    //if ( stmt == null ) throw new AlignmentException( "Required edoal:onAttribute property" );
 	    pe = parsePathExpression( stmt.getResource() ); // MUSTCHECK
 	    if ( rdfType.equals( SyntaxElement.TYPE_COND.resource ) ) {
 

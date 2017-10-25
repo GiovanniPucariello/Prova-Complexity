@@ -56,8 +56,8 @@ public class SPARQLSelectRendererVisitor extends GraphPatternRendererVisitor imp
 			embedded = true;
 		if ( p.getProperty( "blanks" ) != null && !p.getProperty( "blanks" ).equals("") )
 			blanks = true;
-		if ( p.getProperty( "weakens" ) != null && !p.getProperty( "weakens" ).equals("") )
-			weakens = true;
+		//if ( p.getProperty( "weakens" ) != null && !p.getProperty( "weakens" ).equals("") )
+			//weakens = true;
 		if ( p.getProperty( "ignoreerrors" ) != null && !p.getProperty( "ignoreerrors" ).equals("") )
 			ignoreerrors = true;
 	}

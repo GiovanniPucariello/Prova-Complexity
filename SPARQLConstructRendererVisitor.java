@@ -269,6 +269,27 @@ public class SPARQLConstructRendererVisitor extends GraphPatternRendererVisitor 
         this.ifTmpnull(tmp, query_weaken);
     }
 
+    public void firstIf(Cell cell, URI u1, URI u2, String query, String tmp, String query_weaken) throws AlignmentException {
+        if ((u1 != null && u2 != null)
+                || alignment.getLevel().startsWith("2EDOAL")) {
+
+            this.if2EDOALVisit(cell,query,tmp,query_weaken);
+        }
+    }
+
+    public void ifElseGp2(String query, String query_weaken, String tmp){
+        if (!GP2.contains("UNION") && !GP2.contains("FILTER")) {
+
+            this.ifGp2ContainsUnion(query, query_weaken);
+
+        } else {
+            Iterator<String> list = listGP2.iterator();
+
+            this.elseGp2(tmp, list);
+
+        }
+    }
+
 
     public void visit(Cell cell) throws AlignmentException {
         if (subsumedInvocableMethod(this, cell, Cell.class)) return;
@@ -280,11 +301,8 @@ public class SPARQLConstructRendererVisitor extends GraphPatternRendererVisitor 
         String tmp = "";
         URI u1 = cell.getObject1AsURI(alignment);
         URI u2 = cell.getObject2AsURI(alignment);
-        if ((u1 != null && u2 != null)
-                || alignment.getLevel().startsWith("2EDOAL")) {
 
-            this.if2EDOALVisit(cell,query,tmp,query_weaken);
-        }
+        this.firstIf(cell,u1,u2,query,tmp,query_weaken);
 
         this.forEnumE(query_IgnoreErrors);
 
@@ -302,16 +320,9 @@ public class SPARQLConstructRendererVisitor extends GraphPatternRendererVisitor 
         query_IgnoreErrors = "";
         tmp = "";
 
-        if (!GP2.contains("UNION") && !GP2.contains("FILTER")) {
 
-            this.ifGp2ContainsUnion(query, query_weaken);
+        this.ifElseGp2(query,query_weaken,tmp);
 
-        } else {
-            Iterator<String> list = listGP2.iterator();
-
-            this.elseGp2(tmp, list);
-
-        }
         if (!tmp.equals("")) {
 
             this.ifTmpNotNull(query_weaken, tmp);

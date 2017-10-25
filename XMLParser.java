@@ -266,10 +266,10 @@ public class XMLParser extends DefaultHandler {
 
 	public void startElement(String namespaceURI, String pName, String qname, Attributes atts) throws SAXException {
 		if (debugMode > 2) System.err.println("startElement XMLParser : " + pName);
-		parseLevel++;
-
-		 this.startElementA(pName,atts,namespaceURI);
-
+		else {
+			parseLevel++;
+			this.startElementA(pName, atts, namespaceURI);
+		}
 
 		      //Issue#8394 : assegnata a Vincenzo Plantone
 		  //else if (pName.equals(SyntaxElement.FORMATT.name)) {
@@ -321,6 +321,228 @@ public class XMLParser extends DefaultHandler {
 	if ( debugMode > 2 ) System.err.println("content XMLParser : " + content);
     }
 
+    public void elseTest() throws SAXException, AlignmentException {
+		// This test must be revised for more generic confidence (which should then be strings)
+		double conf = Double.parseDouble( measure );
+		if ( conf > 1. || conf < 0. )
+			throw new SAXException( "Bad confidence value : "+conf+" (should belong to [0. 1.])" );
+		cell = alignment.addAlignCell( cl1, cl2, relation, conf );
+	}
+
+	public void ifpNameEqualsUri(){
+		// Legacy
+		try {
+			URI u = new URI( content );
+			onto1.setURI( u );
+			if ( onto1.getFile() == null ) onto1.setFile( u );
+		} catch (URISyntaxException e) {
+//			throw new SAXException("uri1: malformed URI : "+content);
+		}
+	}
+
+	public void finalElse(String namespaceURI, String pName){
+
+		if ( namespaceURI.equals( Namespace.ALIGNMENT.uri+"#" ) ) namespaceURI = Namespace.ALIGNMENT.uri;
+		if ( parseLevel == 3 ){
+			alignment.setExtension( namespaceURI, pName, content );
+		} else if ( parseLevel == 5 ) {
+			extensions.setExtension( namespaceURI, pName, content );
+		} else //if ( debugMode > 0 )
+			System.err.println("[XMLParser("+parseLevel+")] Unknown element name : "+pName);
+		//throw new SAXException("[XMLParser] Unknown element name : "+pName);
+	}
+
+	public void lastElse(String namespaceURI, String pName) throws SAXException {
+
+		if ( parseLevel == 3 && alignLevel != -1 ){
+			alignment.setExtension( namespaceURI, pName, content );
+		} else if ( parseLevel == 5 && alignLevel != -1 ) {
+			if ( extensions == null ) extensions = new Extensions();
+			extensions.setExtension( namespaceURI, pName, content );
+		} else if (  !embedded ) throw new SAXException("[XMLParser] Unknown namespace : "+namespaceURI);
+	}
+
+	public void elseIfMappingSource(){
+
+		if ( curronto.getFile() == null &&
+				content != null && !content.equals("") ) {
+			try {
+				URI u = new URI( content );
+				curronto.setFile( u );
+				if ( curronto.getURI() == null ) curronto.setURI( u );
+			} catch (URISyntaxException e) {
+//			    throw new SAXException(pName+": malformed URI : "+content );
+			}
+		};
+		curronto = null;
+	}
+
+	public void elseIfLevelName() throws SAXException {
+
+		if ( content.startsWith("2") ) { // Maybe !startsWith("0") would be better
+			throw new SAXException("Cannot parse Level 2 alignments (so far)");
+		} else {
+			alignment.setLevel( content );
+		}
+	}
+
+	public void ifDebMaj1(){
+		if(debugMode > 1) {
+			System.err.print(" " + cl1);
+			System.err.print(" " + cl2);
+			System.err.print(" " + relation);
+			System.err.println(" " + Double.parseDouble(measure));
+		}
+	}
+
+	public void ifcl1() throws AlignmentException, SAXException {
+		if ( cl1 == null || cl2 == null ) {
+			// Maybe we could just print this out and fail in the end.
+			//throw new SAXException( "Missing entity "+cl1+" "+cl2 );
+			// The cell is void
+			System.err.println("Warning (cell voided), missing entity "+cl1+" "+cl2 );
+		} else if ( measure == null || relation == null ){
+			cell = alignment.addAlignCell( cl1, cl2);
+		} else {
+
+			this.elseTest();
+		}
+	}
+
+	public void ifPnameCellName() throws SAXException, AlignmentException {
+
+		this.ifDebMaj1();
+
+		this.ifcl1();
+
+		if ( id != null ) cell.setId( id );
+		if ( sem != null ) cell.setSemantics( sem );
+		if ( extensions != null ) ((BasicCell)cell).setExtensions( extensions );
+
+	}
+
+	public void ifPnameLocation(){
+
+		try { curronto.setFile( new URI( content ) );
+		} catch (URISyntaxException e) {
+			//throw new SAXException("Malformed URI : "+content );
+		}
+
+	}
+
+	public void ifSoap(String pName) throws SAXException {
+			// Ignore SOAP namespace
+			if ( !pName.equals("Envelope") && !pName.equals("Body") ) {
+				throw new SAXException("[XMLParser] unknown element name: "+pName); };
+	}
+
+	public void endElementA(String pName) throws SAXException, AlignmentException {
+		if (pName.equals( SyntaxElement.RULE_RELATION.name )) {
+			relation = content;
+		} else if (pName.equals( SyntaxElement.MEASURE.name )) {
+			measure = content;
+		} else if (pName.equals( SyntaxElement.SEMANTICS.name )) {
+			sem = content;
+
+			//Issue#8394 : assegnata a Vincenzo Plantone
+			//} else if (pName.equals( SyntaxElement.ENTITY2.name )) {
+			//} else if (pName.equals( SyntaxElement.ENTITY1.name )) {
+
+
+		}else{
+			this.endElementB(pName);
+		}
+	}
+
+	public void endElementB(String pName) throws AlignmentException, SAXException {
+		if (pName.equals( SyntaxElement.CELL.name )) {
+
+			this.ifPnameCellName();
+
+			//Issue#8394 : assegnata a Vincenzo Plantone
+			//} else if (pName.equals( SyntaxElement.MAP.name )) {
+
+		} else if (pName.equals("uri1")) {
+
+			this.ifpNameEqualsUri();
+
+		} else{
+			this.endElementC(pName);
+		}
+	}
+
+	public void endElementC(String pName) throws SAXException {
+		if (pName.equals("uri2")) { // Legacy
+
+			this.ifpNameEqualsUri();
+
+			//Issue#8394 : assegnata a Vincenzo Plantone
+			//} else if (pName.equals( SyntaxElement.ONTOLOGY.name )) {
+
+
+		} else if (pName.equals( SyntaxElement.LOCATION.name )) {
+
+			this.ifPnameLocation();
+
+			//Issue#8394 : assegnata a Vincenzo Plantone
+			//} else if (pName.equals( SyntaxElement.FORMALISM.name )) {
+			//} else if (pName.equals( SyntaxElement.FORMATT.name )) {
+
+
+		} else {
+			this.endElementD(pName);
+		}
+	}
+
+	public void endElementD(String pName) throws SAXException {
+		if (pName.equals( SyntaxElement.MAPPING_SOURCE.name ) || pName.equals( SyntaxElement.MAPPING_TARGET.name )) {
+
+			this.elseIfMappingSource();
+
+		} else if (pName.equals( SyntaxElement.TYPE.name )) {
+			alignment.setType( content );
+		} else if (pName.equals( SyntaxElement.LEVEL.name )) {
+
+			this.elseIfLevelName();
+
+			//Issue#8394 : assegnata a Vincenzo Plantone
+			//} else if (pName.equals( SyntaxElement.XML.name )) {
+			//if ( content.equals("no") )
+			//	{ throw new SAXException("Cannot parse non XML alignments"); }
+
+
+		} else {
+			 this.endElementE(pName);
+		}
+	}
+
+
+	public void endElementE(String pName){
+		if (pName.equals( SyntaxElement.ALIGNMENT.name )) {
+			parseLevel = alignLevel; // restore level<
+			alignLevel = -1;
+		} else {
+			String namespaceURI=null;
+			this.finalElse(namespaceURI,pName);
+
+		}
+	}
+
+	public void finalElseIf(String namespaceURI, String pName) throws SAXException {
+		if(namespaceURI.equals( Namespace.RDF.prefix ) ) {//"http://www.w3.org/1999/02/22-rdf-syntax-ns#"))  {
+			if ( !pName.equals("RDF") ) {
+				throw new SAXException("[XMLParser] unknown element name: "+pName); };
+		} else if (namespaceURI.equals( Namespace.EDOAL.prefix )) {
+			throw new SAXException("[XMLParser] EDOAL alignment must have type EDOAL: "+pName);
+		} else {
+
+			this.lastElse(namespaceURI,pName);
+
+		}
+
+	}
+
+
     /** 
      * Called by the XML parser at the end of an element.
      *
@@ -334,115 +556,17 @@ public class XMLParser extends DefaultHandler {
 	if( namespaceURI.equals( Namespace.ALIGNMENT.uri+"#" )
 	    || namespaceURI.equals( Namespace.ALIGNMENT.uri ) )  {
 	    try {
-		if (pName.equals( SyntaxElement.RULE_RELATION.name )) {
-		    relation = content;
-		} else if (pName.equals( SyntaxElement.MEASURE.name )) {
-		    measure = content;
-		} else if (pName.equals( SyntaxElement.SEMANTICS.name )) {
-		    sem = content;
-		} else if (pName.equals( SyntaxElement.ENTITY2.name )) {
-		} else if (pName.equals( SyntaxElement.ENTITY1.name )) {
-		} else if (pName.equals( SyntaxElement.CELL.name )) {
-		    if(debugMode > 1) {
-			System.err.print(" " + cl1);
-			System.err.print(" " + cl2);
-			System.err.print(" " + relation);
-			System.err.println(" " + Double.parseDouble(measure));
-		    }
-		    if ( cl1 == null || cl2 == null ) {
-			// Maybe we could just print this out and fail in the end.
-			//throw new SAXException( "Missing entity "+cl1+" "+cl2 );
-			// The cell is void
-			System.err.println("Warning (cell voided), missing entity "+cl1+" "+cl2 );
-		    } else if ( measure == null || relation == null ){
-			cell = alignment.addAlignCell( cl1, cl2);
-		    } else {
-			// This test must be revised for more generic confidence (which should then be strings)
-			double conf = Double.parseDouble( measure );
-			if ( conf > 1. || conf < 0. )
-			    throw new SAXException( "Bad confidence value : "+conf+" (should belong to [0. 1.])" );
-			cell = alignment.addAlignCell( cl1, cl2, relation, conf );}
-		    if ( id != null ) cell.setId( id );
-		    if ( sem != null ) cell.setSemantics( sem );
-		    if ( extensions != null ) ((BasicCell)cell).setExtensions( extensions );
-		} else if (pName.equals( SyntaxElement.MAP.name )) {
-		} else if (pName.equals("uri1")) { // Legacy
-		    try {
-			URI u = new URI( content );
-			onto1.setURI( u );
-			if ( onto1.getFile() == null ) onto1.setFile( u );
-		    } catch (URISyntaxException e) {
-//			throw new SAXException("uri1: malformed URI : "+content);
-		    }
-		} else if (pName.equals("uri2")) { // Legacy
-		    try {
-			URI u = new URI( content );
-			onto2.setURI( u );
-			if ( onto2.getFile() == null ) onto2.setFile( u );
-		    } catch (URISyntaxException e) {
-//			throw new SAXException("uri1: malformed URI : "+content);
-		    }
-		} else if (pName.equals( SyntaxElement.ONTOLOGY.name )) {
-		} else if (pName.equals( SyntaxElement.LOCATION.name )) {
-		    try { curronto.setFile( new URI( content ) );
-		    } catch (URISyntaxException e) {
-			//throw new SAXException("Malformed URI : "+content );
-		    }
-		} else if (pName.equals( SyntaxElement.FORMALISM.name )) {
-		} else if (pName.equals( SyntaxElement.FORMATT.name )) {
-		} else if (pName.equals( SyntaxElement.MAPPING_SOURCE.name ) || pName.equals( SyntaxElement.MAPPING_TARGET.name )) {
-		    if ( curronto.getFile() == null && 
-			 content != null && !content.equals("") ) {
-			try {
-			    URI u = new URI( content );
-			    curronto.setFile( u );
-			    if ( curronto.getURI() == null ) curronto.setURI( u );
-			} catch (URISyntaxException e) {
-//			    throw new SAXException(pName+": malformed URI : "+content );
-			}
-		    };
-		    curronto = null;
-		} else if (pName.equals( SyntaxElement.TYPE.name )) {
-		    alignment.setType( content );
-		} else if (pName.equals( SyntaxElement.LEVEL.name )) {
-		    if ( content.startsWith("2") ) { // Maybe !startsWith("0") would be better
-			throw new SAXException("Cannot parse Level 2 alignments (so far)");
-		    } else {
-			alignment.setLevel( content );
-		    }
-		} else if (pName.equals( SyntaxElement.XML.name )) {
-		    //if ( content.equals("no") )
-		    //	{ throw new SAXException("Cannot parse non XML alignments"); }
-		} else if (pName.equals( SyntaxElement.ALIGNMENT.name )) {
-		    parseLevel = alignLevel; // restore level<
-		    alignLevel = -1;
-		} else {
-		    if ( namespaceURI.equals( Namespace.ALIGNMENT.uri+"#" ) ) namespaceURI = Namespace.ALIGNMENT.uri;
-		    if ( parseLevel == 3 ){
-			alignment.setExtension( namespaceURI, pName, content );
-		    } else if ( parseLevel == 5 ) {
-			extensions.setExtension( namespaceURI, pName, content );
-		    } else //if ( debugMode > 0 )
-			System.err.println("[XMLParser("+parseLevel+")] Unknown element name : "+pName);
-		    //throw new SAXException("[XMLParser] Unknown element name : "+pName);
-		};
+
+	    	this.endElementA(pName);
+
 	    } catch ( AlignmentException e ) { throw new SAXException("[XMLParser] Exception raised", e); };
 	} else if(namespaceURI.equals( Namespace.SOAP_ENV.prefix ) ) {//"http://schemas.xmlsoap.org/soap/envelope/"))  {
-	    // Ignore SOAP namespace
-	    if ( !pName.equals("Envelope") && !pName.equals("Body") ) {
-		throw new SAXException("[XMLParser] unknown element name: "+pName); };
-	} else if(namespaceURI.equals( Namespace.RDF.prefix ) ) {//"http://www.w3.org/1999/02/22-rdf-syntax-ns#"))  {
-	    if ( !pName.equals("RDF") ) {
-		throw new SAXException("[XMLParser] unknown element name: "+pName); };
-	} else if (namespaceURI.equals( Namespace.EDOAL.prefix )) { 
-	    throw new SAXException("[XMLParser] EDOAL alignment must have type EDOAL: "+pName);
+
+		this.ifSoap(pName);
+
 	} else {
-	    if ( parseLevel == 3 && alignLevel != -1 ){
-		alignment.setExtension( namespaceURI, pName, content );
-	    } else if ( parseLevel == 5 && alignLevel != -1 ) {
-		if ( extensions == null ) extensions = new Extensions();
-		extensions.setExtension( namespaceURI, pName, content );
-	    } else if (  !embedded ) throw new SAXException("[XMLParser] Unknown namespace : "+namespaceURI);
+
+		this.finalElseIf(namespaceURI,pName);
 	}
 	content = null; // JE2012: set it for the character patch
 	parseLevel--;
@@ -642,7 +766,7 @@ public class XMLParser extends DefaultHandler {
             this.ifSoapPrefix(pName);
 
         }else{
-            this.startElementL();
+            this.startElementL(pName,atts,namespaceURI);
         }
     }
 

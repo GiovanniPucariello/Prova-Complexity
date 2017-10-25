@@ -442,14 +442,14 @@ public class ExtPREvaluator extends BasicEvaluator implements Evaluator {
 
     public void ifRelsensitiveC1C2(Cell c1, Cell c2, double val){
 
-        if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals(">"))
-                || (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals(">"))) {
-        } else if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals("<"))
-                || (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals("<"))) {
-            val = val / 2;
-        } else {
-            val = 0.;
-        }
+        //if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals(">"))
+                //|| (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals(">"))) {
+            //} else if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals("<"))
+                //|| (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals("<"))) {
+            //val = val / 2;
+        //} else {
+          //  val = 0.;
+        //}
     }
 
     public void elseOnto1Precision(int val1, double val, Cell c1, Cell c2) throws AlignmentException {
@@ -540,14 +540,14 @@ public class ExtPREvaluator extends BasicEvaluator implements Evaluator {
 
     public void ifRelsensitiveRecall(Cell c1, Cell c2, double val){
 
-        if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals("<"))
-                || (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals("<"))) {
-        } else if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals(">"))
-                || (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals(">"))) {
-            val = val / 2;
-        } else {
+        //if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals("<"))
+                //|| (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals("<"))) {
+        //} else if ((c1.getRelation().getRelation().equals("=") && c2.getRelation().getRelation().equals(">"))
+                //|| (c2.getRelation().getRelation().equals("=") && c1.getRelation().getRelation().equals(">"))) {
+            //val = val / 2;
+        //} else {
             val = 0.;
-        }
+        //}
     }
 
     public void ifWithConfidenceRelsensitiveRecall(double val, Cell c1, Cell c2){
